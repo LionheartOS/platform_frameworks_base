@@ -103,6 +103,9 @@ import java.util.List;
 
 import static com.android.internal.util.cm.PowerMenuConstants.*;
 
+import static android.view.WindowManager.TAKE_SCREENSHOT_FULLSCREEN;
+import static android.view.WindowManager.TAKE_SCREENSHOT_SELECTED_REGION;
+
 /**
  * Helper to show the global actions dialog.  Each item is an {@link Action} that
  * may show depending on whether the keyguard is showing, and whether the device
@@ -113,6 +116,9 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
     private static final String TAG = "GlobalActions";
 
     private static final boolean SHOW_SILENT_TOGGLE = true;
+
+    private int mScreenshotFullscreen = TAKE_SCREENSHOT_FULLSCREEN;
+    private int mScreenshotSelectedRegion = TAKE_SCREENSHOT_SELECTED_REGION;
 
     private final Context mContext;
     private final WindowManagerFuncs mWindowManagerFuncs;
@@ -525,7 +531,12 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         @Override
         public boolean onLongPress() {
             mHandler.sendEmptyMessage(MESSAGE_DISMISS);
-            takeScreenshot(true /* partial */);
+            if (Settings.System.getInt(mContext.getContentResolver(),
+                  Settings.System.SCREENSHOT_TYPE, 0) == 1) {
+                     takeScreenshot(mScreenshotSelectedRegion);
+                     } else {
+                       takeScreenshot(mScreenshotFullscreen);
+                     }
             return true;
         }
 
@@ -785,8 +796,29 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
      * functions needed for taking screenhots.
      * This leverages the built in ICS screenshot functionality
      */
-    final Object mScreenshotLock = new Object();
-    ServiceConnection mScreenshotConnection = null;
+     class ScreenshotRunnable implements Runnable {
+        private int mScreenshotFullscreen = TAKE_SCREENSHOT_FULLSCREEN;
+        private int mScreenshotSelectedRegion = TAKE_SCREENSHOT_SELECTED_REGION;
+
+        public void setScreenshotType(int screenshotType) {
+          if (Settings.System.getInt(mContext.getContentResolver(),
+          Settings.System.SCREENSHOT_TYPE, 0) == 1) {
+             mScreenshotSelectedRegion = screenshotType;
+             } else {
+                mScreenshotFullscreen = screenshotType;
+              }
+            }
+
+            @Override
+            public void run() {
+               if (Settings.System.getInt(mContext.getContentResolver(),
+               Settings.System.SCREENSHOT_TYPE, 0) == 1) {
+                 takeScreenshot(mScreenshotSelectedRegion);
+                  } else {
+                    takeScreenshot(mScreenshotFullscreen);
+                  }
+                }
+              }
 
     final Runnable mScreenshotTimeout = new Runnable() {
         @Override public void run() {
@@ -799,7 +831,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         }
     };
 
-    private void takeScreenshot(final boolean partial) {
+    private void takeScreenshot(final int screenshotType) {
         synchronized (mScreenshotLock) {
             if (mScreenshotConnection != null) {
                 return;
@@ -816,9 +848,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                             return;
                         }
                         Messenger messenger = new Messenger(service);
-                        Message msg = Message.obtain(null, 1);
-                        msg.what = partial ? WindowManager.TAKE_SCREENSHOT_SELECTED_REGION
-                                : WindowManager.TAKE_SCREENSHOT_FULLSCREEN;
+                        Message msg = Message.obtain(null, screenshotType);
                         final ServiceConnection myConn = this;
                         Handler h = new Handler(mHandler.getLooper()) {
                             @Override
@@ -835,34 +865,20 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                         msg.replyTo = new Messenger(h);
                         msg.arg1 = msg.arg2 = 0;
 
-                        /*  remove for the time being
-                        if (mStatusBar != null && mStatusBar.isVisibleLw())
-                            msg.arg1 = 1;
-                        if (mNavigationBar != null && mNavigationBar.isVisibleLw())
-                            msg.arg2 = 1;
-                         */
-
-                        /* wait for the dialog box to close */
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException ie) {
-                            // Do nothing
-                        }
-
-                        /* take the screenshot */
                         try {
                             messenger.send(msg);
                         } catch (RemoteException e) {
-                            // Do nothing
+                            // Do nothing here
                         }
                     }
                 }
                 @Override
                 public void onServiceDisconnected(ComponentName name) {}
             };
-            if (mContext.bindService(intent, conn, Context.BIND_AUTO_CREATE)) {
+            if (mContext.bindServiceAsUser(
+            intent, conn, Context.BIND_AUTO_CREATE, UserHandle.CURRENT)) {
                 mScreenshotConnection = conn;
-                mHandler.postDelayed(mScreenshotTimeout, 10000);
+                mHandler.postDelayed(mScreenshotTimeout, 1000);
             }
         }
     }
