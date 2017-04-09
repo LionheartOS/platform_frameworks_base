@@ -2568,6 +2568,16 @@ public final class Settings {
         public static final String AIRPLANE_MODE_RADIOS = Global.AIRPLANE_MODE_RADIOS;
 
         /**
+         * Immersive recents options
+         *
+         * 0 = Default AOSP look
+         * 1 = Statusbar only
+         * 2 = Navbar only
+         * 3 = Fullscreen
+         */
+        public static final String IMMERSIVE_RECENTS = "immersive_recents";
+
+        /**
          * @deprecated Use {@link android.provider.Settings.Global#AIRPLANE_MODE_TOGGLEABLE_RADIOS} instead
          *
          * {@hide}
