@@ -29,6 +29,10 @@ LOCAL_SHARED_LIBRARIES := \
     libtinyalsa \
     libregionalization
 
+ifeq ($(TARGET_BOOTANIMATION_MULTITHREAD_DECODE),true)
+    LOCAL_CFLAGS += -DMULTITHREAD_DECODE
+endif
+
 LOCAL_MODULE:= bootanimation
 
 LOCAL_INIT_RC := bootanim.rc
