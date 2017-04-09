@@ -5168,6 +5168,12 @@ public final class Settings {
         public static final String LOCKSCREEN_PIN_RIPPLE = "lockscreen_pin_ripple";
 
         /**
+        * whether to enable or disable vibration on succesful fingerprint auth
+        * @hide
+        */
+        public static final String FINGERPRINT_SUCCESS_VIB = "fingerprint_success_vib";
+
+        /**
          * The Logging ID (a unique 64-bit value) as a hex string.
          * Used as a pseudonymous identifier for logging.
          * @deprecated This identifier is poorly initialized and has
